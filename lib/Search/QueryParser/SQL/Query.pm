@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -95,7 +95,6 @@ sub pairs {
     my $vend    = chr(3);
     my $opstart = chr(5);
     my $opend   = chr(6);
-    my $like    = $self->{_parser}->{like};
 
     # set flag temporarily
     $self->{opts}->{delims} = 1;
@@ -290,6 +289,17 @@ sub _orm_subq {
                 "unknown operator logic for column '$colname' op '$op' value '$value'";
         }
 
+        # if lower, then turn pair into a scalar ref literal
+        if ( !$column->is_int and $self->{_parser}->{lower} ) {
+            my $col     = $pair[0];
+            my $val     = $pair[1];
+            my $this_op = $op;
+            if ( ref $val ) {
+                ( $this_op, $val ) = each %$val;
+            }
+            @pair = ( [ \qq/lower($pair[0]) $this_op lower(?)/, $val ] );
+        }
+
         push @buf, @pair;
     }
 
@@ -348,6 +358,7 @@ sub _unwind_subQ {
 
     # optional
     my $col_quote = $self->{_parser}->{quote_columns};
+    my $use_lower = $self->{_parser}->{lower};
 
     # make sure we have a column
     my @columns
@@ -378,6 +389,13 @@ COLNAME: for my $colname (@columns) {
 
         # whether we quote depends on the field (column) type
         my $quote = $column->is_int ? "" : "'";
+
+        my $prefix = '';
+        my $suffix = '';
+        if ( !$column->is_int and $use_lower ) {
+            $prefix = 'lower(';
+            $suffix = ')';
+        }
 
         # fuzzy
         if ( $op =~ m/\~/ ) {
@@ -415,16 +433,18 @@ COLNAME: for my $colname (@columns) {
             push(
                 @buf,
                 join( '',
-                    $col_quote, $colname, $col_quote, chr(5), $this_op,
-                    chr(6),     chr(2),   $value,     chr(3) )
+                    $prefix, $col_quote, $colname, $col_quote, $suffix,
+                    chr(5),  $this_op,   chr(6),   $prefix,    chr(2),
+                    $value,  chr(3),     $suffix, )
             );
         }
         else {
             push(
                 @buf,
                 join( '',
-                    $col_quote, $colname, $col_quote, $this_op,
-                    $quote,     $value,   $quote )
+                    $prefix, $col_quote, $colname, $col_quote,
+                    $suffix, $this_op,   $prefix,  $quote,
+                    $value,  $quote,     $suffix, )
             );
         }
     }
