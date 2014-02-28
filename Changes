@@ -1,6 +1,6 @@
 Revision history for Search-QueryParser-SQL
 
-0.010 27 Feb 2014
+0.010 28 Feb 2014
  - add 'lower' feature to parser
 
 0.009 20 Aug 2013
