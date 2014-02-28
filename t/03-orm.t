@@ -270,21 +270,21 @@ ok( my $lower_dbic_qp = Search::QueryParser::SQL->new(
 ok( my $lower_dbic_query = $lower_dbic_qp->parse( "butter -milk", 0 ),
     "parse lower dbic query" );
 
-diag( dump $lower_dbic_query->dbic );
-diag( $lower_dbic_query->stringify );
-is_deeply(
-    $lower_dbic_query->dbic,
-    [   '-and' => [
-            "-or" => [
-                [ \"lower(table1.column1) LIKE lower(?)", '%butter%', ],
-                [ \"lower(table1.column2) LIKE lower(?)", '%butter%', ]
-            ],
-            "-and" => [
-                [ \"lower(table1.column1) NOT LIKE lower(?)", '%milk%', ],
-                [ \"lower(table1.column2) NOT LIKE lower(?)", '%milk%' ],
-            ],
+#diag( dump $lower_dbic_query->dbic );
+#diag( $lower_dbic_query->stringify );
+my $expected_lower = [
+    '-and' => [
+        "-or" => [
+            [ \"lower(table1.column1) LIKE lower(?)", '%butter%', ],
+            [ \"lower(table1.column2) LIKE lower(?)", '%butter%', ]
         ],
-
+        "-and" => [
+            [ \"lower(table1.column1) NOT LIKE lower(?)", '%milk%', ],
+            [ \"lower(table1.column2) NOT LIKE lower(?)", '%milk%' ],
+        ],
     ],
-    "lower ->dbic structure"
-);
+
+];
+#diag( dump $expected_lower );
+is_deeply( $lower_dbic_query->dbic,
+    $expected_lower, "lower ->dbic structure" );

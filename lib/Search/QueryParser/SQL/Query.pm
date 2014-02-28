@@ -126,7 +126,7 @@ sub rdbo {
 
     my $q = $self->_orm;
 
-    $debug and warn "q: " . dump $q;
+    $debug and warn "rdbo q: " . dump $q;
 
     my $joiner = $self->{_implicit_AND} ? 'AND' : 'OR';
     if ( defined $self->{'-'} ) {
@@ -136,6 +136,7 @@ sub rdbo {
     }
 
     if ( scalar @$q > 2 ) {
+        $debug and warn "rdbo \$q > 2, joiner=$joiner";
         return [ $joiner => $q ];
     }
     else {
@@ -173,6 +174,7 @@ sub dbic {
     }
 
     if ( scalar @$q > 2 ) {
+        $debug and warn "dbic \$q > 2, joiner=$joiner";
         return [ $joiner => $q ];
     }
     else {
@@ -216,8 +218,23 @@ sub _orm {
             push( @op_subq, ( $items > 2 ) ? ( $sub_joiner => $q ) : @$q );
         }
 
-        push( @$query,
-            ( scalar(@op_subq) > 2 ) ? ( $joiner => \@op_subq ) : @op_subq );
+        $debug and warn sprintf( "n subq == %d, joiner=%s, dump: %s\n",
+            scalar(@op_subq), $joiner, dump \@op_subq );
+
+        if ( $self->{_parser}->{lower}
+            and grep { ref($_) eq 'ARRAY' } @op_subq )
+        {
+            # when 'lower' is on, items in the subq are arrayrefs, so count
+            # of items is different
+            push @$query, $joiner => \@op_subq;
+        }
+        else {
+
+            push( @$query,
+                  ( scalar(@op_subq) > 2 )
+                ? ( $joiner => \@op_subq )
+                : @op_subq );
+        }
 
     }
     return $query;
